@@ -9,7 +9,7 @@ __pycache__/
 
 *.pt
 *.tar
-!models/model_ScaleFormer_backup/*.pt
+!models/model_ScaleFormer_backup/**/*.pt
 # Distribution / packaging
 .Python
 build/
