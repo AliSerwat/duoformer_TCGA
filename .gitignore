@@ -9,7 +9,7 @@ __pycache__/
 
 *.pt
 *.tar
-
+!models/**/*.pt
 # Distribution / packaging
 .Python
 build/
