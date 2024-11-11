@@ -1,0 +1,2 @@
+Test: The epoch is 1, balanced val accuracy: 0.3333, balanced test accuracy: 0.3333, average loss: 1.0997930765151978,TP= [0, 0, 6168], TN= [68733, 21491, 0], FN= [15323, 62565, 0], FP= [0, 0, 77888], F1= [0.0, 0.0, 0.13672636992374532], TPR= [0.0, 0.0, 1.0], TNR= [1.0, 1.0, 0.0], Current Time =17:53:18
+

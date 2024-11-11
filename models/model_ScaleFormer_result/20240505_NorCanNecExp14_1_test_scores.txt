@@ -1,0 +1,24 @@
+Epoch: 1: confusion matrix: each row counts prediction, each column counts ground truth
+0   0   0   
+15213   62408   3104   
+110   157   3064   
+Epoch: 2: confusion matrix: each row counts prediction, each column counts ground truth
+0   0   0   
+15191   62447   2910   
+132   118   3258   
+Epoch: 3: confusion matrix: each row counts prediction, each column counts ground truth
+10504   18554   486   
+3362   42625   1664   
+1457   1386   4018   
+Epoch: 8: confusion matrix: each row counts prediction, each column counts ground truth
+12520   3875   560   
+2767   58542   2645   
+36   148   2963   
+Epoch: 11: confusion matrix: each row counts prediction, each column counts ground truth
+13366   4925   437   
+1800   57070   1892   
+157   570   3839   
+Epoch: 17: confusion matrix: each row counts prediction, each column counts ground truth
+12049   1817   271   
+3121   59584   2495   
+153   1164   3402   

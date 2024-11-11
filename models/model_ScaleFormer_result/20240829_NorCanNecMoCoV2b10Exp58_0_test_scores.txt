@@ -1,0 +1,16 @@
+Epoch: 1: confusion matrix: each row counts prediction, each column counts ground truth
+14294   28973   1486   
+1013   33401   1327   
+16   191   3355   
+Epoch: 2: confusion matrix: each row counts prediction, each column counts ground truth
+13060   5510   1065   
+2244   56820   1980   
+19   235   3123   
+Epoch: 3: confusion matrix: each row counts prediction, each column counts ground truth
+11147   1777   368   
+4141   60561   2361   
+35   227   3439   
+Epoch: 5: confusion matrix: each row counts prediction, each column counts ground truth
+11040   2479   803   
+3871   59535   1513   
+412   551   3852   

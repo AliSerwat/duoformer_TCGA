@@ -1,0 +1,1 @@
+Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 23:41:51

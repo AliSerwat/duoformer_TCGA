@@ -1,0 +1,8 @@
+Train set: Epoch: 1 Average loss: 15213.7143, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 2 Average loss: 12525.9418, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 3 Average loss: 10567.0969, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 4 Average loss: 9099.3879, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 5 Average loss: 7990.7672, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 6 Average loss: 7154.4259, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 7 Average loss: 6527.2924, Accuracy in labeled data: 21000/63000.0 (33.3333%)
+Train set: Epoch: 8 Average loss: 6060.1869, Accuracy in labeled data: 21000/63000.0 (33.3333%)

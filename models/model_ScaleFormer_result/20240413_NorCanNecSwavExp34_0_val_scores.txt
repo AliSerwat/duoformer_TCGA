@@ -1,0 +1,12 @@
+confusion matrix: each row counts prediction, each column counts ground truth
+1652   211   60   
+238   7476   75   
+100   255   1166   
+confusion matrix: each row counts prediction, each column counts ground truth
+1652   211   60   
+238   7476   75   
+100   255   1166   
+confusion matrix: each row counts prediction, each column counts ground truth
+1652   211   60   
+238   7476   75   
+100   255   1166   
