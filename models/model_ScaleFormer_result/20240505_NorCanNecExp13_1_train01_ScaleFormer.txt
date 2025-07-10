@@ -1,3 +1,0 @@
-Train set: Epoch: 1 Average loss: 1.0986, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 02:20:45
-Train set: Epoch: 2 Average loss: 1.0986, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 06:39:43
-Train set: Epoch: 3 Average loss: 1.0986, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 09:10:12

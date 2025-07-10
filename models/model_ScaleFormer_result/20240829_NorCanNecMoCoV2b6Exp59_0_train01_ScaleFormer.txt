@@ -1,1 +1,0 @@
-Train set: Epoch: 1 Average loss: 0.4226, Accuracy in labeled data: 4806/6000.0 (80.1000%)

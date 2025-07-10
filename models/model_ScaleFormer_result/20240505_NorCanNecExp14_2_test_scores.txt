@@ -1,4 +1,0 @@
-Epoch: 1: confusion matrix: each row counts prediction, each column counts ground truth
-0   0   0   
-0   0   0   
-15323   62565   6168   

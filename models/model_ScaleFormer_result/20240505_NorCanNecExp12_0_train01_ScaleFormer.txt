@@ -1,9 +1,0 @@
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 22:12:53
-Train set: Epoch: 1 Average loss: 1.0987, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 22:15:38
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 22:47:58
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 23:05:12
-Train set: Epoch: 1 Average loss: 1.0990, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 23:07:20
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 23:08:20
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 23:09:09
-Train set: Epoch: 1 Average loss: 1.0986, Accuracy in labeled data: 2/6.0 (33.3333%), current time= 23:12:11
-Train set: Epoch: 1 Average loss: 1.0988, Accuracy in labeled data: 2000/6000.0 (33.3333%), current time= 23:43:52
