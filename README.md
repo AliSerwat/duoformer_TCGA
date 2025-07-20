@@ -10,3 +10,4 @@ A valid and clean main.py is coming very soon, just need to remove operations re
 Our saved checkpoints are provided at:
 
 [Checkpoint1](https://drive.google.com/file/d/1AtnRSPbMJXQd7MPM_6nVAr1sq1CHS5Pr/view?usp=sharing)
+[Checkpoint2](https://drive.google.com/file/d/1x4M0nyvqp0Cyn4joLb6Lvrn8W-JttqWv/view?usp=sharing)
