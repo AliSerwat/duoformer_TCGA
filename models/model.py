@@ -1,36 +1,57 @@
-import torch
-import timm
-from timm.models.vision_transformer import VisionTransformer
-from timm.layers import Mlp, DropPath
-from timm.models.resnetv2 import ResNetV2
-from torch import nn
+from pathlib import Path
+
+dir_containing_this_file = Path(__file__).resolve().parent
+import sys
+
+sys.path.insert(0, dir_containing_this_file)
+from torchvision.models import ResNet50_Weights, ResNet18_Weights
+from backbone import *
+from scale_attention import *
+from projection_head import *
+from multiscale_attn import *
+from multi_vision_transformer import *
 import torchvision.models as models
-from torchvision.models import ResNet50_Weights,ResNet18_Weights
-from .multi_vision_transformer import *
-from .multiscale_attn import *
-from .projection_head import *
-from .scale_attention import *
-from .backbone import *
+from torch import nn
+from timm.models.resnetv2 import ResNetV2
+from timm.layers import Mlp, DropPath
+from timm.models.vision_transformer import VisionTransformer
+import timm
+import torch
+
 
 class MyModel(nn.Module):
-    def __init__(self, depth=None,patch_size=49, embed_dim=256,num_heads=6,init_values = 1e-5,num_classes=2,num_layers = 4, 
-        proj_dim = 512,model_ver='originalViT', pretrained=True,freeze=True):
+    def __init__(
+        self,
+        depth=None,
+        patch_size=49,
+        embed_dim=256,
+        num_heads=6,
+        init_values=1e-5,
+        num_classes=2,
+        num_layers=4,
+        proj_dim=512,
+        model_ver="originalViT",
+        pretrained=True,
+        freeze=True,
+    ):
         super().__init__()
         self.name = model_ver
         self.num_layers = num_layers
         self.proj_dim = proj_dim
         if pretrained:
-            self.resnet_projector = nn.Sequential(*list(models.resnet50(weights=ResNet50_Weights.DEFAULT).children())[:-2])
+            self.resnet_projector = nn.Sequential(
+                *list(models.resnet50(weights=ResNet50_Weights.DEFAULT).children())[:-2]
+            )
             print("resnet 50 pretrained weights loaded!")
             # self.resnet_projector = nn.Sequential(*list(models.resnet18(weights=ResNet18_Weights.DEFAULT).children())[:-2])
             # self.vanilla_hybrid = timm.create_model('vit_small_r26_s32_224.augreg_in21k_ft_in1k',pretrained=True,
             # num_classes=num_classes)
             # self.projection = nn.Conv2d(1024, self.proj_dim, kernel_size=(1,1),stride=(1,1))
             # self.projection1 = nn.Conv2d(2048, 768, kernel_size=(1,1),stride=(1,1))
-            # nn.init.kaiming_normal_(self.projection.weight)  
+            # nn.init.kaiming_normal_(self.projection.weight)
             # if self.projection.bias is not None:
             #     nn.init.normal_(self.projection.bias, std=.02)
-            # nn.init.kaiming_normal_(self.projection1.weight)  
+            # nn.init.kaiming_normal_(self.projection1.weight)
             # if self.projection1.bias is not None:
             #     nn.init.normal_(self.projection1.bias, std=.02) # 1e-6
             # self.channel_squeeze =  nn.Sequential(
@@ -44,20 +65,35 @@ class MyModel(nn.Module):
             #         nn.init.zeros_(layer.bias)
 
         else:
-            self.resnet_projector = nn.Sequential(*list(models.resnet50().children())[:-2])
+            self.resnet_projector = nn.Sequential(
+                *list(models.resnet50().children())[:-2]
+            )
             # self.resnet_projector = nn.Sequential(*list(models.resnet18(weights=ResNet18_Weights.DEFAULT).children())[:-2])
             # print("resnet 18 pretrained weights loaded!")
             # self.resnet_projector = Backbone()
-            # self.resnet_projector2 = Backbone2() 
+            # self.resnet_projector2 = Backbone2()
 
         self.chann_proj1 = Channel_Projector_layer1()
         self.chann_proj2 = Channel_Projector_layer2()
         self.chann_proj3 = Channel_Projector_layer3()
         self.chann_proj_all = Channel_Projector_All()
-        self.projection = Projection(num_layers=self.num_layers, proj_dim=self.proj_dim,backbone = 'r50' )
+        self.projection = Projection(
+            num_layers=self.num_layers, proj_dim=self.proj_dim, backbone="r50"
+        )
         if self.num_layers > 1:
-            self.vision_transformer = MultiscaleTransformer(pretrained=pretrained,depth=depth, scales=num_layers, num_heads=num_heads,patch_size=patch_size,embed_dim=embed_dim, 
-                                            init_values = init_values,num_classes=num_classes,model_type = self.name,attn_drop_rate=0.1,drop_rate=0.1)  
+            self.vision_transformer = MultiscaleTransformer(
+                pretrained=pretrained,
+                depth=depth,
+                scales=num_layers,
+                num_heads=num_heads,
+                patch_size=patch_size,
+                embed_dim=embed_dim,
+                init_values=init_values,
+                num_classes=num_classes,
+                model_type=self.name,
+                attn_drop_rate=0.1,
+                drop_rate=0.1,
+            )
             print("multiscaletransformer!")
             # self.scale_former = ScaleFormer(depth=12,scales=self.num_layers,num_heads=12,embed_dim=self.proj_dim) # consistent with pretrained hybrid
 
@@ -65,52 +101,125 @@ class MyModel(nn.Module):
         if freeze == True:
             for param in self.resnet_projector.parameters():
                 param.requires_grad = False
-            print('Backbone freezed!')
+            print("Backbone freezed!")
 
         self.index = {}
         for i in range(4):
-            self.index[f'{4-i-1}']=torch.empty([49,4**i],dtype=torch.int32)
+            self.index[f"{4-i-1}"] = torch.empty([49, 4**i], dtype=torch.int32)
 
         for r in range(7):
             for c in range(7):
-                p = r*7+c
-                self.index['3'][p,:] = p
-                self.index['2'][p,:] = torch.IntTensor(
-                    [2*r*14+2*c, (2*r+1)*14+2*c, 2*r*14+(2*c+1),(2*r+1)*14+(2*c+1)])
+                p = r * 7 + c
+                self.index["3"][p, :] = p
+                self.index["2"][p, :] = torch.IntTensor(
+                    [
+                        2 * r * 14 + 2 * c,
+                        (2 * r + 1) * 14 + 2 * c,
+                        2 * r * 14 + (2 * c + 1),
+                        (2 * r + 1) * 14 + (2 * c + 1),
+                    ]
+                )
 
-                self.index['1'][p,:] = torch.IntTensor([4*r*28+4*c, 4*r*28+4*c+1,4*r*28+4*c+2,4*r*28+4*c+3,
-                (4*r+1)*28+4*c, (4*r+1)*28+4*c+1, (4*r+1)*28+4*c+2, (4*r+1)*28+4*c+3,
-                (4*r+2)*28+4*c, (4*r+2)*28+4*c+1, (4*r+2)*28+4*c+2, (4*r+2)*28+4*c+3,
-                (4*r+3)*28+4*c, (4*r+3)*28+4*c+1, (4*r+3)*28+4*c+2, (4*r+3)*28+4*c+3])
+                self.index["1"][p, :] = torch.IntTensor(
+                    [
+                        4 * r * 28 + 4 * c,
+                        4 * r * 28 + 4 * c + 1,
+                        4 * r * 28 + 4 * c + 2,
+                        4 * r * 28 + 4 * c + 3,
+                        (4 * r + 1) * 28 + 4 * c,
+                        (4 * r + 1) * 28 + 4 * c + 1,
+                        (4 * r + 1) * 28 + 4 * c + 2,
+                        (4 * r + 1) * 28 + 4 * c + 3,
+                        (4 * r + 2) * 28 + 4 * c,
+                        (4 * r + 2) * 28 + 4 * c + 1,
+                        (4 * r + 2) * 28 + 4 * c + 2,
+                        (4 * r + 2) * 28 + 4 * c + 3,
+                        (4 * r + 3) * 28 + 4 * c,
+                        (4 * r + 3) * 28 + 4 * c + 1,
+                        (4 * r + 3) * 28 + 4 * c + 2,
+                        (4 * r + 3) * 28 + 4 * c + 3,
+                    ]
+                )
 
-                self.index['0'][p, :] = torch.IntTensor(
-                [8*r*56+8*c, 8*r*56+8*c+1, 8*r*56+8*c+2,8*r*56+8*c+3,8*r*56+8*c+4,8*r*56+8*c+5,
-                8*r*56+8*c+6, 8*r*56+8*c+7,
-                (8*r+1)*56+8*c, (8*r+1)*56+8*c+1, (8*r+1)*56+8*c+2,(8*r+1)*56+8*c+3,(8*r+1)*56+8*c+4,
-                (8*r+1)*56+8*c+5, (8*r+1)*56+8*c+6, (8*r+1)*56+8*c+7,
-                (8*r+2)*56+8*c, (8*r+2)*56+8*c+1, (8*r+2)*56+8*c+2,(8*r+2)*56+8*c+3,(8*r+2)*56+8*c+4,
-                (8*r+2)*56+8*c+5, (8*r+2)*56+8*c+6, (8*r+2)*56+8*c+7,
-                (8*r+3)*56+8*c, (8*r+3)*56+8*c+1, (8*r+3)*56+8*c+2,(8*r+3)*56+8*c+3,(8*r+3)*56+8*c+4,
-                (8*r+3)*56+8*c+5, (8*r+3)*56+8*c+6, (8*r+3)*56+8*c+7,
-                (8*r+4)*56+8*c, (8*r+4)*56+8*c+1, (8*r+4)*56+8*c+2,(8*r+4)*56+8*c+3,(8*r+4)*56+8*c+4,
-                (8*r+4)*56+8*c+5, (8*r+4)*56+8*c+6, (8*r+4)*56+8*c+7,
-                (8*r+5)*56+8*c, (8*r+5)*56+8*c+1, (8*r+5)*56+8*c+2,(8*r+5)*56+8*c+3,(8*r+5)*56+8*c+4,
-                (8*r+5)*56+8*c+5, (8*r+5)*56+8*c+6, (8*r+5)*56+8*c+7,
-                (8*r+6)*56+8*c, (8*r+6)*56+8*c+1, (8*r+6)*56+8*c+2,(8*r+6)*56+8*c+3,(8*r+6)*56+8*c+4,
-                (8*r+6)*56+8*c+5, (8*r+6)*56+8*c+6, (8*r+6)*56+8*c+7,
-                (8*r+7)*56+8*c, (8*r+7)*56+8*c+1, (8*r+7)*56+8*c+2,(8*r+7)*56+8*c+3,(8*r+7)*56+8*c+4,
-                (8*r+7)*56+8*c+5, (8*r+7)*56+8*c+6, (8*r+7)*56+8*c+7])
+                self.index["0"][p, :] = torch.IntTensor(
+                    [
+                        8 * r * 56 + 8 * c,
+                        8 * r * 56 + 8 * c + 1,
+                        8 * r * 56 + 8 * c + 2,
+                        8 * r * 56 + 8 * c + 3,
+                        8 * r * 56 + 8 * c + 4,
+                        8 * r * 56 + 8 * c + 5,
+                        8 * r * 56 + 8 * c + 6,
+                        8 * r * 56 + 8 * c + 7,
+                        (8 * r + 1) * 56 + 8 * c,
+                        (8 * r + 1) * 56 + 8 * c + 1,
+                        (8 * r + 1) * 56 + 8 * c + 2,
+                        (8 * r + 1) * 56 + 8 * c + 3,
+                        (8 * r + 1) * 56 + 8 * c + 4,
+                        (8 * r + 1) * 56 + 8 * c + 5,
+                        (8 * r + 1) * 56 + 8 * c + 6,
+                        (8 * r + 1) * 56 + 8 * c + 7,
+                        (8 * r + 2) * 56 + 8 * c,
+                        (8 * r + 2) * 56 + 8 * c + 1,
+                        (8 * r + 2) * 56 + 8 * c + 2,
+                        (8 * r + 2) * 56 + 8 * c + 3,
+                        (8 * r + 2) * 56 + 8 * c + 4,
+                        (8 * r + 2) * 56 + 8 * c + 5,
+                        (8 * r + 2) * 56 + 8 * c + 6,
+                        (8 * r + 2) * 56 + 8 * c + 7,
+                        (8 * r + 3) * 56 + 8 * c,
+                        (8 * r + 3) * 56 + 8 * c + 1,
+                        (8 * r + 3) * 56 + 8 * c + 2,
+                        (8 * r + 3) * 56 + 8 * c + 3,
+                        (8 * r + 3) * 56 + 8 * c + 4,
+                        (8 * r + 3) * 56 + 8 * c + 5,
+                        (8 * r + 3) * 56 + 8 * c + 6,
+                        (8 * r + 3) * 56 + 8 * c + 7,
+                        (8 * r + 4) * 56 + 8 * c,
+                        (8 * r + 4) * 56 + 8 * c + 1,
+                        (8 * r + 4) * 56 + 8 * c + 2,
+                        (8 * r + 4) * 56 + 8 * c + 3,
+                        (8 * r + 4) * 56 + 8 * c + 4,
+                        (8 * r + 4) * 56 + 8 * c + 5,
+                        (8 * r + 4) * 56 + 8 * c + 6,
+                        (8 * r + 4) * 56 + 8 * c + 7,
+                        (8 * r + 5) * 56 + 8 * c,
+                        (8 * r + 5) * 56 + 8 * c + 1,
+                        (8 * r + 5) * 56 + 8 * c + 2,
+                        (8 * r + 5) * 56 + 8 * c + 3,
+                        (8 * r + 5) * 56 + 8 * c + 4,
+                        (8 * r + 5) * 56 + 8 * c + 5,
+                        (8 * r + 5) * 56 + 8 * c + 6,
+                        (8 * r + 5) * 56 + 8 * c + 7,
+                        (8 * r + 6) * 56 + 8 * c,
+                        (8 * r + 6) * 56 + 8 * c + 1,
+                        (8 * r + 6) * 56 + 8 * c + 2,
+                        (8 * r + 6) * 56 + 8 * c + 3,
+                        (8 * r + 6) * 56 + 8 * c + 4,
+                        (8 * r + 6) * 56 + 8 * c + 5,
+                        (8 * r + 6) * 56 + 8 * c + 6,
+                        (8 * r + 6) * 56 + 8 * c + 7,
+                        (8 * r + 7) * 56 + 8 * c,
+                        (8 * r + 7) * 56 + 8 * c + 1,
+                        (8 * r + 7) * 56 + 8 * c + 2,
+                        (8 * r + 7) * 56 + 8 * c + 3,
+                        (8 * r + 7) * 56 + 8 * c + 4,
+                        (8 * r + 7) * 56 + 8 * c + 5,
+                        (8 * r + 7) * 56 + 8 * c + 6,
+                        (8 * r + 7) * 56 + 8 * c + 7,
+                    ]
+                )
 
-    def get_features(self,x):
+    def get_features(self, x):
         layers = []
-        for i in range(4): #self.num_layers
-            layers.append(str(7-i))
+        for i in range(4):  # self.num_layers
+            layers.append(str(7 - i))
         # layers = ['4','5'] # '5','4'
         features = {}
         for name, module in list(self.resnet_projector.named_children()):
             x = module(x)
             if name in layers:
-                features[str(int(name)-4)] = x
+                features[str(int(name) - 4)] = x
         return features
 
     def forward(self, x):
@@ -151,7 +260,7 @@ class MyModel(nn.Module):
         # # print(output.shape)
         # # output = self.vanilla_hybrid.patch_embed.proj(output)
         # # patch attention from pretrained
-        # # cls_token = self.vanilla_hybrid.cls_token.expand(output.shape[0], -1, -1)    
+        # # cls_token = self.vanilla_hybrid.cls_token.expand(output.shape[0], -1, -1)
         # # output = torch.cat((cls_token, output), dim=1)
         # # output = output + self.vanilla_hybrid.pos_embed
         # # output = self.vanilla_hybrid.pos_drop(output)
@@ -168,42 +277,51 @@ class MyModel(nn.Module):
         # fea['2'] = self.projection.proj_heads2(x[-2])
         # channel
         channel_fuse = {}
-        channel_fuse['0'] = self.chann_proj1(x['0'])
-        channel_fuse['1'] = self.chann_proj2(x['1'])
-        channel_fuse['2'] = self.chann_proj3(x['2'])
-        channel_fuse['3'] = x['3']
-        channel_fuse_all = torch.cat([channel_fuse[key] for key in sorted(channel_fuse.keys())], dim=1)
-        channel_token = self.chann_proj_all(channel_fuse_all).unsqueeze(-1).permute(0,2,3,1) #49,1,768
+        channel_fuse["0"] = self.chann_proj1(x["0"])
+        channel_fuse["1"] = self.chann_proj2(x["1"])
+        channel_fuse["2"] = self.chann_proj3(x["2"])
+        channel_fuse["3"] = x["3"]
+        channel_fuse_all = torch.cat(
+            [channel_fuse[key] for key in sorted(channel_fuse.keys())], dim=1
+        )
+        channel_token = (
+            self.chann_proj_all(channel_fuse_all).unsqueeze(-1).permute(0, 2, 3, 1)
+        )  # 49,1,768
 
-        x = self.projection({'2':x['2'],'3':x['3']})
-        if self.name == 'scaleformer':
+        x = self.projection({"2": x["2"], "3": x["3"]})
+        if self.name == "scaleformer":
             # B,C,H,W = x['0'].shape
             # x['1'] = x['1'].reshape(B,C,-1)
             # x['0'] = x['0'].reshape(B,C,-1)
             # x['1']= x['1'][:,:,self.index['1']]
             # x['0']= x['0'][:,:,self.index['0']]
-            # x = torch.cat((x['1'],x['0']), dim = -1).permute(0,2,3,1) 
-            # x = x['0'].permute(0,2,3,1) 
-            B,C,H,W = x['3'].shape
-            x['3'] = x['3'].reshape(B,C,-1)
-            x['2'] = x['2'].reshape(B,C,-1)
-            x['3']= x['3'][:,:,self.index['3']] # [64, 768, 7, 7] -> [64, 49, 1, 7, 7]
-            x['2']= x['2'][:,:,self.index['2']] # [64, 768, 14, 14] -> [64, 49, 4, 14, 14]
+            # x = torch.cat((x['1'],x['0']), dim = -1).permute(0,2,3,1)
+            # x = x['0'].permute(0,2,3,1)
+            B, C, H, W = x["3"].shape
+            x["3"] = x["3"].reshape(B, C, -1)
+            x["2"] = x["2"].reshape(B, C, -1)
+            # [64, 768, 7, 7] -> [64, 49, 1, 7, 7]
+            x["3"] = x["3"][:, :, self.index["3"]]
+            # [64, 768, 14, 14] -> [64, 49, 4, 14, 14]
+            x["2"] = x["2"][:, :, self.index["2"]]
             if self.num_layers == 2:
-                x = torch.cat((x['3'],x['2']), dim = -1).permute(0,2,3,1) # [64, 768, 49, 5] -> [64, 49, 5, 768]
+                # [64, 768, 49, 5] -> [64, 49, 5, 768]
+                x = torch.cat((x["3"], x["2"]), dim=-1).permute(0, 2, 3, 1)
             elif self.num_layers == 4:
-                x['1'] = x['1'].reshape(B,C,-1)
-                x['0'] = x['0'].reshape(B,C,-1)
-                x['1']= x['1'][:,:,self.index['1']]
-                x['0']= x['0'][:,:,self.index['0']]
-                x = torch.cat((x['3'],x['2'],x['1'],x['0']), dim = -1).permute(0,2,3,1) 
+                x["1"] = x["1"].reshape(B, C, -1)
+                x["0"] = x["0"].reshape(B, C, -1)
+                x["1"] = x["1"][:, :, self.index["1"]]
+                x["0"] = x["0"][:, :, self.index["0"]]
+                x = torch.cat((x["3"], x["2"], x["1"], x["0"]), dim=-1).permute(
+                    0, 2, 3, 1
+                )
             elif self.num_layers == 3:
-                x['1'] = x['1'].reshape(B,C,-1)
-                x['1']= x['1'][:,:,self.index['1']]
-                x = torch.cat((x['3'],x['2'],x['1']), dim = -1).permute(0,2,3,1) 
-        x = torch.cat((channel_token, x), dim=2) 
+                x["1"] = x["1"].reshape(B, C, -1)
+                x["1"] = x["1"][:, :, self.index["1"]]
+                x = torch.cat((x["3"], x["2"], x["1"]), dim=-1).permute(0, 2, 3, 1)
+        x = torch.cat((channel_token, x), dim=2)
         output = self.vision_transformer(x)
-        # cls_token = self.vanilla_vit.cls_token.expand(output.shape[0], -1, -1)    
+        # cls_token = self.vanilla_vit.cls_token.expand(output.shape[0], -1, -1)
         # output = torch.cat((cls_token, output), dim=1)
         # output = output + self.vanilla_vit.pos_embed
         # output = self.vanilla_vit.pos_drop(output)
@@ -211,7 +329,7 @@ class MyModel(nn.Module):
         # output = self.vanilla_vit.blocks(output)
         # output = self.vanilla_vit.norm(output)
         # output = self.vanilla_vit.forward_head(output)
-        # x = x['3'].permute(0,2,1) 
+        # x = x['3'].permute(0,2,1)
         # x = self.vanilla_vit._pos_embed(x)
         # x = self.vanilla_vit.patch_drop(x)
         # x = self.vanilla_vit.norm_pre(x)
@@ -221,35 +339,39 @@ class MyModel(nn.Module):
         # return x
         # x1,x2,x3,output = self.resnet_projector(x)
         return output
-        
+
 
 class HybridModel(nn.Module):
-    def __init__(self, num_classes=100,num_blocks=12,proj_dim=768,num_heads=6):
+    def __init__(self, num_classes=100, num_blocks=12, proj_dim=768, num_heads=6):
         super().__init__()
         self.num_blocks = num_blocks
         self.proj_dim = proj_dim
-        self.resnet_projector = nn.Sequential(*list(models.resnet18(weights=ResNet18_Weights.DEFAULT).children())[:-2])
+        self.resnet_projector = nn.Sequential(
+            *list(models.resnet18(weights=ResNet18_Weights.DEFAULT).children())[:-2]
+        )
         # for param in self.resnet_projector.parameters():
         #     param.requires_grad = False
-        ### for baseline 2
-        self.projection = Projection(num_layers=1, proj_dim=self.proj_dim )
-        self.vision_transformer = VisionTransformer(patch_size=32, depth=self.num_blocks,num_classes=num_classes)  # n_patches:49
-        ### for mixed feature experiment, we only need the vanilla ViT without patch embedding
+        # for baseline 2
+        self.projection = Projection(num_layers=1, proj_dim=self.proj_dim)
+        self.vision_transformer = VisionTransformer(
+            patch_size=32, depth=self.num_blocks, num_classes=num_classes
+        )  # n_patches:49
+        # for mixed feature experiment, we only need the vanilla ViT without patch embedding
         # self.vision_transformer = VisionTransformer(num_classes=num_classes,depth=self.num_blocks,embed_dim=proj_dim)  # emb_dim: 512, n_patches:196, attn_dim:196
-        ### for mixed feature experiment wi two attn, emb_dim: 512, n_patches:196, attn_dim:512
+        # for mixed feature experiment wi two attn, emb_dim: 512, n_patches:196, attn_dim:512
         # self.projection1 = Projection(num_layers=1, proj_dim=784*4 )
         # self.projection2 = nn.Conv2d(784, proj_dim, kernel_size=(1,1),stride=(1,1))
         # nn.Conv1d(in_channels=512, out_channels=proj_dim, kernel_size=1)
         # nn.init.kaiming_normal_(self.projection2.weight)
         # if self.projection2.bias is not None:
-                # nn.init.normal_(self.projection2.bias, std=1e-6)
+        # nn.init.normal_(self.projection2.bias, std=1e-6)
         # self.vision_transformer2 = VisionTransformer(num_classes=num_classes,depth=self.num_blocks,patch_size=8,embed_dim=196,num_heads=num_heads,class_token=False,global_pool = '') # 224/8 x 224/8 =28x28=784
         # self.test =  nn.Linear(784,num_classes)
 
     def forward(self, x):
-        x = self.resnet_projector(x) # 2048,7,7
-        x = self.projection(x) # 784*4,7,7
-        ###  this is for baseline 2: a pretrained r50 + vit from scratch(replacing patch emb by a single layer projection)
+        x = self.resnet_projector(x)  # 2048,7,7
+        x = self.projection(x)  # 784*4,7,7
+        # this is for baseline 2: a pretrained r50 + vit from scratch(replacing patch emb by a single layer projection)
         x = x.flatten(2).transpose(1, 2)
         # remove patch emb layer from ViT
         x = self.vision_transformer._pos_embed(x)
@@ -258,15 +380,15 @@ class HybridModel(nn.Module):
         x = self.vision_transformer.blocks(x)
         x = self.vision_transformer.norm(x)
         x = self.vision_transformer.forward_head(x)
-        ###    end of baseline 2
+        # end of baseline 2
 
-        ### this is for mixed feature experiment
+        # this is for mixed feature experiment
         # B,C,H,W = x.shape
-        # x = x.reshape(B,784,-1) # .transpose(1, 2)
+        # x = x.reshape(B,784,-1) # transpose(1, 2)
 
         # ### for mixed feature with two attns
         # B,C,H,W = x.shape  # 784*4,7,7
-        # x = x.reshape(B,784,-1) # .permute(0,2, 1) # 784,196
+        # x = x.reshape(B,784,-1) # permute(0,2, 1) # 784,196
         # x = self.vision_transformer2._pos_embed(x)
         # x = self.vision_transformer2.patch_drop(x)
         # x = self.vision_transformer2.norm_pre(x)
@@ -289,38 +411,42 @@ class HybridModel(nn.Module):
         # x = self.vision_transformer.forward_head(x)
         return x
 
+
 class ViTBase16(nn.Module):
-    def __init__(self,n_classes=100, model_type = 'R50ViT'):
+    def __init__(self, n_classes=100, model_type="R50ViT"):
         super().__init__()
-        if model_type == 'ViT':
+        if model_type == "ViT":
             self.model = VisionTransformer(num_classes=n_classes)
-            
-        elif model_type == 'ViTPretrained':
-            self.model = timm.create_model(
-            'vit_base_r50_s16_224_in21k',pretrained=True,
-            num_classes=n_classes)
 
-        elif model_type == 'R50ViTPretrained':
+        elif model_type == "ViTPretrained":
             self.model = timm.create_model(
-            'vit_base_r50_s16_224_in21k',pretrained=True,
-            num_classes=n_classes)
-            print(model_type, 'is created.')
+                "vit_base_r50_s16_224_in21k", pretrained=True, num_classes=n_classes
+            )
 
-        elif model_type == 'R50ViT':
+        elif model_type == "R50ViTPretrained":
+            self.model = timm.create_model(
+                "vit_base_r50_s16_224_in21k", pretrained=True, num_classes=n_classes
+            )
+            print(model_type, "is created.")
+
+        elif model_type == "R50ViT":
             # self.model = timm.create_model(
             # 'vit_base_r50_s16_224_in21k',pretrained=False,
             # num_classes=n_classes)
             self.model = timm.create_model(
-            'vit_small_r26_s32_224.augreg_in21k_ft_in1k',pretrained=True,
-            num_classes=n_classes)
-            print('pretrained hybrid loaded!')
+                "vit_small_r26_s32_224.augreg_in21k_ft_in1k",
+                pretrained=True,
+                num_classes=n_classes,
+            )
+            print("pretrained hybrid loaded!")
         # self.model.head = nn.Linear(self.model.head.in_features, n_classes)
         self.name = model_type
 
-    def forward(self,x):
+    def forward(self, x):
         return self.model(x)
-    
+
+
 def count_parameters(model):
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total_params = sum(p.numel() for p in model.parameters())
-    return trainable_params/1000000, total_params/1000000
+    return trainable_params / 1000000, total_params / 1000000

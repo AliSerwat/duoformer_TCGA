@@ -1,6 +1,13 @@
+from pathlib import Path
+
+dir_containing_this_file = Path(__file__).resolve().parent
+import sys
+
+sys.path.insert(0, dir_containing_this_file)
 import torch
 from torchvision.models.resnet import Bottleneck, ResNet
 import os
+
 
 class ResNetTrunk(ResNet):
     def __init__(self, *args, **kwargs):
@@ -19,6 +26,7 @@ class ResNetTrunk(ResNet):
         x = self.layer4(x)
         return x
 
+
 class ResNetTrunkByScale(ResNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,6 +44,7 @@ class ResNetTrunkByScale(ResNet):
         x3 = self.layer4(x2)
         return [x0, x1, x2, x3]
 
+
 def get_pretrained_url(key):
     URL_PREFIX = "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights"
     # URL_PREFIX = "https://github.com/lunit-io/benchmark-ssl-pathology/releases/tag/pretrained-weights"
@@ -47,6 +56,7 @@ def get_pretrained_url(key):
     pretrained_url = f"{URL_PREFIX}/{model_zoo_registry.get(key)}"
     return pretrained_url, model_zoo_registry.get(key)
 
+
 def resnet50FeatureExtractor(pretrained, progress, key, **kwargs):
     model = ResNetTrunkByScale(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
@@ -55,14 +65,19 @@ def resnet50FeatureExtractor(pretrained, progress, key, **kwargs):
         if os.path.exists(model_filename):
             state_dict = torch.load(model_filename)
             verbose = model.load_state_dict(state_dict)
-            print(f"Model exists. Loaded pretrained model from local file: {model_filename}")
+            print(
+                f"Model exists. Loaded pretrained model from local file: {model_filename}"
+            )
         else:
-            state_dict = torch.hub.load_state_dict_from_url(pretrained_url, progress=progress)
+            state_dict = torch.hub.load_state_dict_from_url(
+                pretrained_url, progress=progress
+            )
             torch.save(state_dict, model_filename)
             verbose = model.load_state_dict(state_dict)
             print(f"Downloaded and saved pretrained model: {model_filename}")
         print(verbose)
     return model
+
 
 def resnet50(pretrained, progress, key, **kwargs):
     model = ResNetTrunk(Bottleneck, [3, 4, 6, 3], **kwargs)
@@ -72,24 +87,33 @@ def resnet50(pretrained, progress, key, **kwargs):
         if os.path.exists(model_filename):
             state_dict = torch.load(model_filename)
             verbose = model.load_state_dict(state_dict)
-            print(f"Model exists. Loaded pretrained model from local file: {model_filename}")
+            print(
+                f"Model exists. Loaded pretrained model from local file: {model_filename}"
+            )
         else:
-            state_dict = torch.hub.load_state_dict_from_url(pretrained_url, progress=progress)
+            state_dict = torch.hub.load_state_dict_from_url(
+                pretrained_url, progress=progress
+            )
             torch.save(state_dict, model_filename)
             verbose = model.load_state_dict(state_dict)
             print(f"Downloaded and saved pretrained model: {model_filename}")
         print(verbose)
     return model
 
+
 class ResNet50withFC(torch.nn.Module):
-    def __init__(self, pretrained=True, progress=False, num_classes=4, key="BT", freeze=True):
+    def __init__(
+        self, pretrained=True, progress=False, num_classes=4, key="BT", freeze=True
+    ):
         super().__init__()
         self.resnet_trunk = resnet50(pretrained=pretrained, progress=progress, key=key)
-        if freeze: # freeze the pretrained feature extractor
+        if freeze:  # freeze the pretrained feature extractor
             for param in self.resnet_trunk.parameters():
                 param.requires_grad = False
-            print('resnet_trunk frozen.')
-        self.fc = torch.nn.Linear(512 * Bottleneck.expansion, num_classes)  # Add your custom linear layer
+            print("resnet_trunk frozen.")
+        self.fc = torch.nn.Linear(
+            512 * Bottleneck.expansion, num_classes
+        )  # Add your custom linear layer
 
     def forward(self, x):
         x = self.resnet_trunk(x)
@@ -98,12 +122,13 @@ class ResNet50withFC(torch.nn.Module):
         x = self.fc(x)
         return x
 
+
 # def count_parameters(model):
 #     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 #     total_params = sum(p.numel() for p in model.parameters())
 #     return trainable_params/1000000, total_params/1000000
 
 # if __name__ == "__main__":
-    # initialize resnet50 trunk using BT pre-trained weight
-    # model = resnet50(pretrained=True, progress=False, key="SwAV")
-    # print(count_parameters(model))
+# initialize resnet50 trunk using BT pre-trained weight
+# model = resnet50(pretrained=True, progress=False, key="SwAV")
+# print(count_parameters(model))
